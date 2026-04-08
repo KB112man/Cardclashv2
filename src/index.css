@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0f1220;
+  --color-panel: #171b2e;
+  --color-line: #31385e;
+  --color-text: #f3f5ff;
+  --color-muted: #a8b0d6;
+  --color-good: #65d68b;
+  --color-bad: #ff7d7d;
+  --color-gold: #ffd36e;
+  --radius-card: 16px;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-bg);
+    min-height: 100vh;
+    color: var(--color-text);
+    background: radial-gradient(circle at top, #182042, #0d1020 55%, #090b15);
+    font-family: Inter, system-ui, Arial, sans-serif;
+    overflow-x: hidden;
+    padding-bottom: 190px;
+  }
+}
+
+.card-back {
+  color: #dce4ff;
+  background: linear-gradient(#4b5fb8, #223068);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+@keyframes floatCombatNumber {
+  0% { opacity: 0; transform: translate(-50%, -42%); }
+  15% { opacity: 1; transform: translate(-50%, -58%); }
+  100% { opacity: 0; transform: translate(-50%, -120%); }
+}
+
+.floating-number {
+  pointer-events: none;
+  z-index: 120;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+  position: fixed;
+  background-color: rgba(15, 18, 32, 0.9);
+  padding: 2px 8px;
+  font-size: 1rem;
+  font-weight: 900;
+  white-space: nowrap;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  animation: 1s ease-out forwards floatCombatNumber;
+  transform: translate(-50%, -50%);
+}
+
+.floating-number.damage { color: var(--color-bad); }
+.floating-number.heal { color: var(--color-good); }
+.floating-number.shield { color: var(--color-blue-300); }
+.floating-number.direct { color: var(--color-gold); }
+
+/* Standalone fan hand patch */
+[data-card-id] { touch-action: manipulation; }
