@@ -14,13 +14,9 @@
 
 @layer base {
   body {
-    background-color: var(--color-bg);
-    min-height: 100vh;
-    color: var(--color-text);
+    @apply bg-bg min-h-screen text-text overflow-x-hidden pb-[190px];
     background: radial-gradient(circle at top, #182042, #0d1020 55%, #090b15);
     font-family: Inter, system-ui, Arial, sans-serif;
-    overflow-x: hidden;
-    padding-bottom: 190px;
   }
 }
 
@@ -37,25 +33,14 @@
 }
 
 .floating-number {
-  pointer-events: none;
-  z-index: 120;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 9999px;
-  position: fixed;
-  background-color: rgba(15, 18, 32, 0.9);
-  padding: 2px 8px;
-  font-size: 1rem;
-  font-weight: 900;
-  white-space: nowrap;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  @apply pointer-events-none fixed z-[120] border border-white/15 rounded-full bg-bg/90 px-2 py-0.5 text-base font-black whitespace-nowrap shadow-lg;
   animation: 1s ease-out forwards floatCombatNumber;
   transform: translate(-50%, -50%);
 }
 
-.floating-number.damage { color: var(--color-bad); }
-.floating-number.heal { color: var(--color-good); }
-.floating-number.shield { color: var(--color-blue-300); }
-.floating-number.direct { color: var(--color-gold); }
+.floating-number.damage { @apply text-bad; }
+.floating-number.heal { @apply text-good; }
+.floating-number.shield { @apply text-blue-300; }
+.floating-number.direct { @apply text-gold; }
 
-/* Standalone fan hand patch */
 [data-card-id] { touch-action: manipulation; }
