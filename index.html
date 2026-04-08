@@ -1,13 +1,444 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Google AI Studio App</title>
-  </head>
-  <body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Card Clash</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/lucide-react@latest"></script>
+    <script src="https://unpkg.com/framer-motion@11.0.3/dist/framer-motion.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-bg: #0f1220;
+            --color-panel: #171b2e;
+            --color-line: #31385e;
+            --color-text: #f3f5ff;
+            --color-muted: #a8b0d6;
+            --color-good: #65d68b;
+            --color-bad: #ff7d7d;
+            --color-gold: #ffd36e;
+            --radius-card: 16px;
+        }
+        body {
+            background: radial-gradient(circle at top, #182042, #0d1020 55%, #090b15);
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            font-family: 'Inter', system-ui, sans-serif;
+            margin: 0;
+            min-height: 100vh;
+            overflow-x: hidden;
+            padding-bottom: 100px;
+            touch-action: manipulation;
+        }
+        .card-back {
+            color: #dce4ff;
+            background: linear-gradient(#4b5fb8, #223068);
+            border-color: rgba(255, 255, 255, 0.16);
+        }
+        @keyframes floatCombatNumber {
+            0% { opacity: 0; transform: translate(-50%, -42%); }
+            15% { opacity: 1; transform: translate(-50%, -58%); }
+            100% { opacity: 0; transform: translate(-50%, -120%); }
+        }
+        .floating-number {
+            position: fixed;
+            pointer-events: none;
+            z-index: 120;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 9999px;
+            background-color: rgba(15, 18, 32, 0.9);
+            padding: 2px 8px;
+            font-size: 1rem;
+            font-weight: 900;
+            white-space: nowrap;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            animation: floatCombatNumber 1s ease-out forwards;
+            transform: translate(-50%, -50%);
+        }
+        .floating-number.damage { color: var(--color-bad); }
+        .floating-number.heal { color: var(--color-good); }
+        .floating-number.shield { color: #93c5fd; }
+        .floating-number.direct { color: var(--color-gold); }
+        [data-card-id] { touch-action: manipulation; }
+    </style>
+</head>
+<body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useLayoutEffect, useRef, useCallback } = React;
+        const { motion, AnimatePresence } = FramerMotion;
+        const { Flame, Minus, Plus, X, Shield, Swords, Heart, Zap, Info } = LucideReact;
 
+        const Xe = { spades: "♠", hearts: "♥", diamonds: "♦", clubs: "♣" };
+        const Me = { 1: "A", 11: "J", 12: "Q", 13: "K" };
+        const Mf = a => a === 1 ? 1 : a === 11 ? 11 : a === 12 ? 10 : a === 13 ? 12 : a;
+        const b2 = a => a === 12 ? 10 : Mf(a);
+        const gu = a => a === 12 ? 10 : Mf(a);
+        const kl = a => {
+            const l = [...a];
+            for (let o = l.length - 1; o > 0; o--) {
+                const u = Math.floor(Math.random() * (o + 1));
+                [l[o], l[u]] = [l[u], l[o]];
+            }
+            return l;
+        };
+
+        const FloatingNumber = ({ x, y, value, kind, onComplete }) => {
+            useEffect(() => {
+                const h = setTimeout(onComplete, 1000);
+                return () => clearTimeout(h);
+            }, [onComplete]);
+            return <div className={`floating-number ${kind}`} style={{ left: x, top: y }}>{value}</div>;
+        };
+
+        const Card = ({ card, isBack = false, isSelected = false, isAttackerSelected = false, isPendingAttacker = false, isBlockFocus = false, isPaired = false, isRecentDraw = false, onClick, onLongPress, className = "" }) => {
+            const b = useRef(null);
+            const x = () => { onLongPress && (b.current = setTimeout(onLongPress, 500)); };
+            const C = () => { b.current && (clearTimeout(b.current), b.current = null); };
+            if (isBack || !card) return <div className={`card card-back w-[82px] h-[118px] rounded-[16px] shadow-xl border-2 border-white/15 flex items-center justify-center ${className}`}><div className="text-2xl font-black opacity-50">🂠</div></div>;
+            const B = card.suit === "hearts" || card.suit === "diamonds" ? "text-[#ff7d7d]" : "text-black";
+            return (
+                <motion.div
+                    layout
+                    initial={isRecentDraw ? { scale: .8, opacity: 0 } : false}
+                    animate={{ scale: 1, opacity: 1 }}
+                    data-card-id={card.id}
+                    className={`card bg-white text-black w-[82px] h-[118px] rounded-[16px] shadow-xl border-2 transition-all cursor-pointer overflow-hidden relative
+                        ${isSelected ? "border-blue-400 -translate-y-4 shadow-2xl" : "border-black/10"}
+                        ${isAttackerSelected ? "border-[#ff7d7d] -translate-y-4 shadow-red-500/20" : ""}
+                        ${isPendingAttacker ? "border-orange-400 -translate-y-6 shadow-orange-500/40 ring-4 ring-orange-400/20" : ""}
+                        ${isBlockFocus ? "border-blue-400 -translate-y-4 shadow-blue-500/20" : ""}
+                        ${isPaired ? "border-[#ffd36e] shadow-gold/20" : ""}
+                        ${isRecentDraw ? "ring-2 ring-purple-400" : ""}
+                        ${className}
+                    `}
+                    onClick={onClick}
+                    onMouseDown={x}
+                    onMouseUp={C}
+                    onTouchStart={x}
+                    onTouchEnd={C}
+                >
+                    <div className={`p-2 h-full flex flex-col justify-between ${B}`}>
+                        <div className="text-sm font-black leading-none">{Me[card.rank] || card.rank}<br />{Xe[card.suit]}</div>
+                        <div className="text-3xl font-black self-center opacity-80">{Xe[card.suit]}</div>
+                        <div className="flex flex-wrap gap-0.5 justify-center">
+                            {card.rank === 1 && <span className="text-[8px] bg-black/5 px-1 rounded-full font-bold">Block Only</span>}
+                            {card.shield > 0 && <span className="text-[8px] bg-blue-100 px-1 rounded-full font-bold">S:{card.shield}</span>}
+                            {card.attackBuff > 0 && <span className="text-[8px] bg-green-100 px-1 rounded-full font-bold">+{card.attackBuff}A</span>}
+                            {card.tempAttackDebuff > 0 && <span className="text-[8px] bg-red-100 px-1 rounded-full font-bold">-{card.tempAttackDebuff}A</span>}
+                        </div>
+                    </div>
+                </motion.div>
+            );
+        };
+
+        const BoardCard = ({ card, side, isSelected = false, isAttackerSelected = false, isPendingAttacker = false, isBlockFocus = false, isPaired = false, effectiveAttack, onClick, onLongPress }) => (
+            <div className="relative group">
+                <Card card={card} isSelected={isSelected} isAttackerSelected={isAttackerSelected} isPendingAttacker={isPendingAttacker} isBlockFocus={isBlockFocus} isPaired={isPaired} onClick={onClick} onLongPress={onLongPress} className="w-[76px] h-[110px]" />
+                <div className="absolute -left-2 top-1/2 -translate-y-1/2 bg-[#0f1220]/90 border border-white/10 rounded-full px-1.5 py-0.5 text-[10px] font-black z-10 shadow-lg">AT {effectiveAttack}</div>
+                <div className="absolute -right-2 top-1/2 -translate-y-1/2 bg-[#0f1220]/90 border border-white/10 rounded-full px-1.5 py-0.5 text-[10px] font-black z-10 shadow-lg">HP {Math.max(0, card.currentHealth)}</div>
+                {card.shield > 0 && <div className="absolute -top-2 right-0 bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-black border border-white/20 shadow-md z-20">{card.shield}</div>}
+            </div>
+        );
+
+        function App() {
+            const [gameState, setGameState] = useState(null);
+            const [view, setView] = useState("game");
+            const [floatingNumbers, setFloatingNumbers] = useState([]);
+            const [selectedCard, setSelectedCard] = useState(null);
+            const [hudPos, setHudPos] = useState(null);
+            const [globalEffects, setGlobalEffects] = useState({ attackBuffs: {}, shields: {}, counter: {}, nullifyTarget: null, globalAttackDebuff: 0 });
+            const cardIdCounter = useRef(1);
+            const floatingIdCounter = useRef(0);
+
+            const calculateAttack = useCallback((card, isAttacking = false, side = "player") => {
+                if (globalEffects.nullifyTarget === card.id) return card.baseAttack;
+                let atk = card.baseAttack + (card.attackBuff || 0) - (card.tempAttackDebuff || 0);
+                if (globalEffects.attackBuffs[card.id]) atk += globalEffects.attackBuffs[card.id];
+                if (side === "cpu" && isAttacking) atk -= globalEffects.globalAttackDebuff;
+                if (isAttacking && card.suit === "spades") atk += 1;
+                return Math.max(0, atk);
+            }, [globalEffects]);
+
+            const getSuitInfo = useCallback(card => {
+                switch (card.suit) {
+                    case "spades": return { label: "Vanguard", desc: "+1 ATK while attacking. Blocks don't consume HP." };
+                    case "hearts": return { label: "Lifesteal", desc: "Heal player for 50% of damage dealt." };
+                    case "diamonds": return { label: "Piercing", desc: "Deals 50% damage to player even if blocked." };
+                    case "clubs": return { label: "Tactician", desc: "Draw a card when this unit destroys an enemy." };
+                    default: return { label: "Neutral", desc: "Standard unit." };
+                }
+            }, []);
+
+            const normalizeHudCard = useCallback((card, side = "player", isAttacking = false) => {
+                if (!card) return null;
+                const baseAtk = card.baseAtk ?? card.baseAttack ?? 0;
+                const baseHp = card.baseHp ?? gu(card.rank);
+                const currentHp = Math.max(0, card.hp ?? card.currentHealth ?? baseHp);
+                const currentAtk = card.atk ?? calculateAttack(card, isAttacking, side);
+                const currentShield = (card.shield || 0) + (globalEffects.shields[card.id] || 0);
+                const buffs = [];
+                if (card.rank === 1) buffs.push("Block Only");
+                if ((card.attackBuff || 0) > 0) buffs.push(`Attack +${card.attackBuff}`);
+                if (globalEffects.attackBuffs[card.id]) buffs.push(`Emergiburn ATK +${globalEffects.attackBuffs[card.id]}`);
+                if ((card.tempAttackDebuff || 0) > 0) buffs.push(`Attack -${card.tempAttackDebuff}`);
+                if (globalEffects.counter[card.id]) buffs.push("Counterstrike");
+                if (globalEffects.nullifyTarget === card.id) buffs.push("Nullified");
+                if (side === "cpu" && isAttacking && globalEffects.globalAttackDebuff > 0) buffs.push(`War Tax -${globalEffects.globalAttackDebuff}`);
+                return { ...card, baseAtk, baseHp, atk: currentAtk, hp: currentHp, shield: currentShield, buffs, bonusAtk: currentAtk - baseAtk, bonusHp: currentHp - baseHp };
+            }, [globalEffects, calculateAttack]);
+
+            const selectedHudCard = useMemo(() => {
+                if (!gameState || !selectedCard) return null;
+                let card = null, side = "player", isAttacking = false;
+                if (selectedCard.zone === "playerHand") card = gameState.playerHand.find(c => c.id === selectedCard.id);
+                else if (selectedCard.zone === "playerBoard") {
+                    card = gameState.playerBoard.find(c => c.id === selectedCard.id);
+                    isAttacking = (gameState.pendingAttackSide === "player" || gameState.phase === "attack") && gameState.selectedAttackers.has(selectedCard.id);
+                } else if (selectedCard.zone === "cpuBoard") {
+                    card = gameState.cpuBoard.find(c => c.id === selectedCard.id);
+                    side = "cpu";
+                    isAttacking = gameState.pendingAttackSide === "cpu" && gameState.selectedAttackers.has(selectedCard.id);
+                }
+                return card ? normalizeHudCard(card, side, isAttacking) : null;
+            }, [gameState, selectedCard, normalizeHudCard]);
+
+            useLayoutEffect(() => {
+                if (!selectedCard || !gameState) {
+                    setHudPos(null);
+                    return;
+                }
+                const update = () => {
+                    const el = document.querySelector(`[data-card-id="${selectedCard.id}"]`);
+                    if (!el) return;
+                    const rect = el.getBoundingClientRect();
+                    const hudWidth = 180;
+                    const hudHeight = 220; // Increased estimate for safety
+                    const padding = 16;
+                    
+                    // Horizontal positioning with clamping
+                    let left = rect.left + rect.width / 2;
+                    left = Math.max(hudWidth / 2 + padding, Math.min(window.innerWidth - hudWidth / 2 - padding, left));
+                    
+                    let top, bottom, placement;
+                    // Vertical positioning with flipping
+                    if (rect.top > hudHeight + 20) {
+                        bottom = window.innerHeight - rect.top + 12;
+                        top = "auto";
+                        placement = "top";
+                    } else {
+                        top = rect.bottom + 12;
+                        bottom = "auto";
+                        placement = "bottom";
+                        // Safety check for bottom edge
+                        if (top + hudHeight > window.innerHeight - padding) {
+                            // If it still doesn't fit below, try to center it vertically or just use the best fit
+                            top = Math.max(padding, window.innerHeight - hudHeight - padding);
+                        }
+                    }
+                    setHudPos({ left, top, bottom, placement });
+                };
+                update();
+                window.addEventListener("resize", update);
+                window.addEventListener("scroll", update, true);
+                return () => {
+                    window.removeEventListener("resize", update);
+                    window.removeEventListener("scroll", update, true);
+                };
+            }, [selectedCard, gameState]);
+
+            const formatHudBonus = (val) => val > 0 ? `+${val}` : val < 0 ? val : "±0";
+
+            const createCard = useCallback((rank, suit) => ({ 
+                id: cardIdCounter.current++, 
+                rank, 
+                suit, 
+                baseValue: Mf(rank), 
+                baseAttack: b2(rank), 
+                baseAtk: b2(rank), 
+                currentHealth: gu(rank), 
+                baseHp: gu(rank), 
+                hp: gu(rank), 
+                attackBuff: 0, 
+                shield: 0, 
+                buffs: [], 
+                tempAttackDebuff: 0 
+            }), []);
+            
+            const createDeck = useCallback(() => {
+                const suits = ["spades", "hearts", "diamonds", "clubs"], cards = [];
+                for (let r = 1; r <= 13; r++) for (const s of suits) cards.push(createCard(r, s));
+                return kl(cards);
+            }, [createCard]);
+
+            const initGame = useCallback(() => {
+                const deck = createDeck(), pHand = deck.splice(0, 5), cHand = deck.splice(0, 5);
+                setGameState({ 
+                    playerHand: pHand, 
+                    playerBoard: [], 
+                    cpuHand: cHand, 
+                    cpuBoard: [], 
+                    deck, 
+                    playerHp: 30, 
+                    cpuHp: 30, 
+                    turn: 1, 
+                    phase: "draw", 
+                    log: ["Game Start!"], 
+                    selectedAttackers: new Set(), 
+                    pendingAttackSide: null, 
+                    recentDraws: new Set() 
+                });
+                setView("game");
+            }, [createDeck]);
+
+            useEffect(() => { initGame(); }, [initGame]);
+
+            const addLog = useCallback(msg => { setGameState(prev => ({ ...prev, log: [msg, ...prev.log].slice(0, 5) })); }, []);
+            const addFloating = useCallback((x, y, val, kind) => { setFloatingNumbers(prev => [...prev, { id: floatingIdCounter.current++, x, y, value: val, kind }]); }, []);
+
+            const handleCardClick = (id, zone) => {
+                if (gameState.phase === "draw" && zone === "playerHand") {
+                    if (gameState.playerBoard.length >= 5) return addLog("Board Full!");
+                    const card = gameState.playerHand.find(c => c.id === id);
+                    setGameState(prev => ({ 
+                        ...prev, 
+                        playerHand: prev.playerHand.filter(c => c.id !== id), 
+                        playerBoard: [...prev.playerBoard, card], 
+                        phase: "attack" 
+                    }));
+                    addLog(`Played ${Me[card.rank] || card.rank} of ${card.suit}`);
+                } else {
+                    setSelectedCard(prev => prev?.id === id ? null : { id, zone });
+                }
+            };
+
+            const nextTurn = () => {
+                setGameState(prev => {
+                    const deck = createDeck(), pHand = deck.splice(0, 5), cHand = deck.splice(0, 5);
+                    return { 
+                        ...prev, 
+                        playerHand: pHand, 
+                        cpuHand: cHand, 
+                        deck, 
+                        turn: prev.turn + 1, 
+                        phase: "draw", 
+                        log: [`Turn ${prev.turn + 1} Start!`], 
+                        selectedAttackers: new Set(), 
+                        pendingAttackSide: null, 
+                        recentDraws: new Set() 
+                    };
+                });
+                setGlobalEffects({ attackBuffs: {}, shields: {}, counter: {}, nullifyTarget: null, globalAttackDebuff: 0 });
+            };
+
+            if (!gameState) return null;
+
+            return (
+                <div className="app max-w-[1200px] mx-auto p-2 sm:p-4">
+                    <AnimatePresence>
+                        {floatingNumbers.map(n => (
+                            <FloatingNumber key={n.id} {...n} onComplete={() => setFloatingNumbers(prev => prev.filter(f => f.id !== n.id))} />
+                        ))}
+                    </AnimatePresence>
+
+                    <div className="flex flex-col gap-4">
+                        {/* CPU Hand */}
+                        <div className="flex justify-center gap-2 h-24 opacity-50">
+                            {gameState.cpuHand.map(c => <Card key={c.id} isBack />)}
+                        </div>
+
+                        {/* CPU Board */}
+                        <div className="flex justify-center gap-4 min-h-[140px] border-b border-white/5 pb-4">
+                            {gameState.cpuBoard.map(c => (
+                                <BoardCard key={c.id} card={c} side="cpu" effectiveAttack={calculateAttack(c, false, "cpu")} onClick={() => handleCardClick(c.id, "cpuBoard")} />
+                            ))}
+                        </div>
+
+                        {/* Player Board */}
+                        <div className="flex justify-center gap-4 min-h-[140px] pt-4">
+                            {gameState.playerBoard.map(c => (
+                                <BoardCard key={c.id} card={c} side="player" effectiveAttack={calculateAttack(c, false, "player")} onClick={() => handleCardClick(c.id, "playerBoard")} />
+                            ))}
+                        </div>
+
+                        {/* Player Hand */}
+                        <div className="flex justify-center items-end h-40 relative px-10">
+                            {gameState.playerHand.map((c, i) => {
+                                const rot = (i - (gameState.playerHand.length - 1) / 2) * 10;
+                                const ty = Math.abs(rot) * 0.5;
+                                return (
+                                    <div key={c.id} style={{ transform: `rotate(${rot}deg) translateY(${ty}px)`, marginLeft: i === 0 ? 0 : -40 }} className="relative z-10">
+                                        <Card card={c} isSelected={selectedCard?.id === c.id} onClick={() => handleCardClick(c.id, "playerHand")} />
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Floating HUD */}
+                    <AnimatePresence>
+                        {selectedCard && selectedHudCard && hudPos && (
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.9, y: hudPos.placement === "top" ? 10 : -10 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.9 }}
+                                className="fixed z-[300] pointer-events-none bg-[#0f1220]/95 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl p-3 flex flex-col gap-1"
+                                style={{
+                                    width: "180px",
+                                    left: hudPos.left,
+                                    top: hudPos.top,
+                                    bottom: hudPos.bottom,
+                                    transform: "translateX(-50%)"
+                                }}
+                            >
+                                <div className="text-[10px] uppercase tracking-widest text-[#a8b0d6]/60 font-black mb-1">
+                                    {selectedCard.zone === "playerHand" ? "Play Preview" : selectedCard.zone === "cpuBoard" ? "Enemy Unit" : "Your Unit"}
+                                </div>
+                                <div className="text-sm font-black mb-2">
+                                    {Me[selectedHudCard.rank] || selectedHudCard.rank} {Xe[selectedHudCard.suit]}
+                                </div>
+                                <div className="space-y-1 text-xs">
+                                    <div className="text-[#65d68b] font-black">HP {selectedHudCard.hp} ({formatHudBonus(selectedHudCard.bonusHp)})</div>
+                                    <div className="text-[#ffd36e] font-black">ATK {selectedHudCard.atk} ({formatHudBonus(selectedHudCard.bonusAtk)})</div>
+                                    <div className="text-blue-300 font-black">{getSuitInfo(selectedHudCard).label}</div>
+                                    <div className="text-[#a8b0d6] leading-relaxed">{getSuitInfo(selectedHudCard).desc}</div>
+                                    {selectedHudCard.buffs.map((b, i) => (
+                                        <div key={i} className="text-[10px] bg-white/5 px-1.5 py-0.5 rounded text-white/80">{b}</div>
+                                    ))}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    {/* Controls */}
+                    <div className="fixed bottom-4 right-4 flex flex-col gap-2 z-50">
+                        <button onClick={nextTurn} className="bg-[#ffd36e] text-[#0f1220] font-black px-6 py-3 rounded-full shadow-lg active:scale-95 transition-transform">
+                            END TURN
+                        </button>
+                        <button onClick={initGame} className="bg-white/10 text-white font-black px-4 py-2 rounded-full text-sm backdrop-blur-sm">
+                            RESTART
+                        </button>
+                    </div>
+
+                    {/* Log */}
+                    <div className="fixed bottom-4 left-4 max-w-[200px] pointer-events-none">
+                        {gameState.log.map((msg, i) => (
+                            <div key={i} className="text-[10px] font-bold text-white/40 mb-1 last:text-white/100 last:text-xs">
+                                {msg}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
